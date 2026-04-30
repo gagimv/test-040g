@@ -234,13 +234,14 @@
 	local-mac-address = [00 0c 43 26 60 01];
 	tx-queues = <4>;
 	rx-queues = <4>;
+	label = "wan";
 };
 
 &gdm4{
 	status = "okay";
 	phy-handle = <&phy15>;
 	phy-mode = "2500base-x";
-	label = "wan";
+	label = "lan1";
 	local-mac-address = [00 0c 43 26 60 02];
 	tx-queues = <4>;
 	rx-queues = <4>;
