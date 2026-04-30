@@ -5,10 +5,48 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include "an7581-nowifi.dtsi"
+#include "an7581-npu-mt7996.dtsi"
 
 / {
     model = "Nokia Bell XG-040G-MD";
     compatible = "bell,xg-040g-md", "airoha,an7581";
+
+    reserved-memory {
+        #address-cells = <2>;
+        #size-cells = <2>;
+        ranges;
+
+        /* 优化 NPU 内存分配以适配 2GB RAM */
+        npu_binary: npu-binary@84000000 {
+            no-map;
+            reg = <0x0 0x84000000 0x0 0x600000>;
+        };
+
+        qdma0_buf: qdma0-buf@86000000 {
+            no-map;
+            reg = <0x0 0x86000000 0x0 0x1000000>;
+        };
+
+        qdma1_buf: qdma1-buf@87000000 {
+            no-map;
+            reg = <0x0 0x87000000 0x0 0x800000>;
+        };
+
+        npu_pkt: npu-pkt@87800000 {
+            no-map;
+            reg = <0x0 0x87800000 0x0 0x600000>;
+        };
+
+        npu_txpkt: npu-txpkt@87e00000 {
+            no-map;
+            reg = <0x0 0x87e00000 0x0 0x600000>;
+        };
+
+        npu_txbufid: npu-txbufid@88400000 {
+            no-map;
+            reg = <0x0 0x88400000 0x0 0x6800>;
+        };
+    };
 
     efuse-banks {
         compatible = "airoha,an7581-efuses";
@@ -29,14 +67,14 @@
     };
 
     chosen {
-        bootargs = "console=ttyS0,115200n8 loglevel=7  earlycon";
+        bootargs = "console=ttyS0,115200n8 earlycon";
         stdout-path = "serial0:115200n8";
-        bootargs-append = " ubi.mtd=rootfs,2048 rootfstype=squashfs loglevel=8 ubi.block=0,rootfs ro init=/etc/preinit";
+        bootargs-append = " ubi.mtd=rootfs,2048 rootfstype=squashfs ubi.block=0,rootfs ro init=/etc/preinit irqaffinity=0xf";
     };
 
     memory@80000000 {
         device_type = "memory";
-        reg = <0x0 0x80000000 0x2 0x00000000>;
+        reg = <0x0 0x80000000 0x0 0x80000000>;
     };
 
 	leds {
@@ -153,7 +191,7 @@
             partition@100000 {
                 label = "ubi";
                 reg = <0x00100000  0x00>;
-		ubi-reserved-pebs = <100>;
+		ubi-reserved-pebs = <40>;
 		};
      };
 };
@@ -168,10 +206,6 @@
 	phys = <&usb1_phy PHY_TYPE_USB2>;
 };
 
-&afe {
-	status = "disabled";
-};
-
 &i2c0 {
     status = "okay";
 };
@@ -182,23 +216,27 @@
 
 &eth {
 	status = "okay";
+	local-mac-address = [00 0c 43 26 60 00];
 };
 
 &gdm1{
 	status = "okay";
+	local-mac-address = [00 0c 43 26 60 01];
 };
 
 &gdm4{
 	status = "okay";
 	phy-handle = <&phy15>;
 	phy-mode = "2500base-x";
-	label = "lan1";
+	label = "wan";
+	local-mac-address = [00 0c 43 26 60 02];
 };
 
 &switch {
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mdio_pins>;
+	local-mac-address = [00 0c 43 26 60 03];
 
 	mdio {
 
@@ -209,8 +247,8 @@
 
 			interrupt-parent = <&gic>;
 			reset-gpios = <&en7581_pinctrl 31 GPIO_ACTIVE_LOW>;
-			reset-assert-us = <10000>;
-			reset-deassert-us = <2000000>;
+			reset-assert-us = <5000>;
+			reset-deassert-us = <1000000>;
 			phy-mode = "2500base-x";
 		};
 	};
@@ -269,4 +307,15 @@
 	default-state = "keep";
 	status = "okay";
 	active-low;
+};
+
+&afe {
+	status = "disabled";
+};
+
+&npu {
+	status = "okay";
+	/* 优化 NPU 性能 */
+	memory-region = <&npu_binary>, <&npu_pkt>, <&npu_txpkt>, <&npu_txbufid>;
+	memory-region-names = "binary", "pkt", "tx-pkt", "tx-bufid";
 };
